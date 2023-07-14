@@ -1,6 +1,6 @@
 ﻿namespace Rain.Compiler.Models;
 
-public class State
+internal class State
 {
-    public string Source { get; set; }
+    internal string? Source { get; set; }
 }
