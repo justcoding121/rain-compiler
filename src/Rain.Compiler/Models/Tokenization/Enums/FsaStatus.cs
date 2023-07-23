@@ -1,6 +1,6 @@
 ﻿namespace Rain.Compiler.Models.Tokenization.Enums;
 
-internal enum FsaStatus
+public enum FsaStatus
 {
     Initial,
     Running,
