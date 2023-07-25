@@ -8,5 +8,6 @@ public interface IFsa
     void Read(char @char);
     FsaStatus Status { get; }
     void Reset();
+    void ReadEndOfCode();
     Token GetToken();
 }

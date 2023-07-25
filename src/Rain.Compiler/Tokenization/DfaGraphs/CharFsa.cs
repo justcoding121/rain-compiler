@@ -3,94 +3,96 @@ using Rain.Compiler.Models.Tokenization;
 using Rain.Compiler.Models.Tokenization.Enums;
 using Rain.Compiler.Models.Tokenization.Tokens;
 using Rain.Compiler.Tokenization.DfaGraphs.Interface;
+using System.Text.RegularExpressions;
 
 namespace Rain.Compiler.Tokenization.DFAGraphs;
 
 /// <summary>
-/// This FSA only allows a valid c character.
+/// This FSA only allows a valid single c character.
 /// A valid c char is exactly 8 bits in length.
 /// References:
 /// https://en.wikipedia.org/wiki/Escape_sequences_in_C
 /// </summary>
-internal class CharFsa : WeightedDiGraph<string, FsaGraphEdge>, IFsa
+internal class CharFsa : WeightedDiGraph<FsaGraphNode, FsaGraphEdge>, IFsa
 {
-    internal static class CharFsaStates
-    {
-        internal const string Start = "Start";
+    private readonly FsaGraphNode _start;
 
-        internal const string Backslash = "Backslash";
-        internal const string Character = "Character";
+    private readonly FsaGraphNode _backslash;
+    private readonly FsaGraphNode _character;
 
-        //Max length is three digits for octal char
-        internal const string OneDigitOctal = "OneDigitOctal";
-        internal const string TwoDigitOctal = "TwoDigitOctal";
-        internal const string ThreeDigitOctal = "ThreeDigitOctal";
+    private readonly FsaGraphNode _oneDigitOctal;
+    private readonly FsaGraphNode _twoDigitOctal;
+    private readonly FsaGraphNode _threeDigitOctal;
 
-        //Max length is two digits for hex char
-        internal const string HexPrefix = "HexPrefix";
-        internal const string OneDigitHex = "OneDigitHex";
-        internal const string TwoDigitHex = "TwoDigitHex";
-    }
+    private readonly FsaGraphNode _hexPrefix;
+    private readonly FsaGraphNode _oneDigitHex;
+    private readonly FsaGraphNode _twoDigitHex;
 
     internal CharFsa()
     {
-        AddVertex(CharFsaStates.Start);
+        _start = new FsaGraphNode("Start");
 
-        AddVertex(CharFsaStates.Backslash);
-        AddVertex(CharFsaStates.Character);
+        _backslash = new FsaGraphNode("Backslash");
+        _character = new FsaGraphNode("Character", true, true);
 
-        AddVertex(CharFsaStates.OneDigitOctal);
-        AddVertex(CharFsaStates.TwoDigitOctal);
-        AddVertex(CharFsaStates.ThreeDigitOctal);
+        _oneDigitOctal = new FsaGraphNode("OneDigitOctal", true);
+        _twoDigitOctal = new FsaGraphNode("TwoDigitOctal", true);
+        _threeDigitOctal = new FsaGraphNode("ThreeDigitOctal", true, true);
 
-        AddVertex(CharFsaStates.HexPrefix);
-        AddVertex(CharFsaStates.OneDigitHex);
-        AddVertex(CharFsaStates.TwoDigitHex);
+        _hexPrefix = new FsaGraphNode("HexPrefix");
+        _oneDigitHex = new FsaGraphNode("OneDigitHex", true);
+        _twoDigitHex = new FsaGraphNode("TwoDigitHex", true, true);
 
-        AddEdge(CharFsaStates.Start, CharFsaStates.Backslash, new FsaGraphEdge("\\"));
+        AddVertex(_start);
+        AddVertex(_backslash);
+        AddVertex(_character);
+        AddVertex(_oneDigitOctal);
+        AddVertex(_twoDigitOctal);
+        AddVertex(_threeDigitOctal);
+        AddVertex(_hexPrefix);
+        AddVertex(_oneDigitHex);
+        AddVertex(_twoDigitHex);
 
-        AddEdge(CharFsaStates.Backslash, CharFsaStates.Character, new FsaGraphEdge("[abefnrtv\\\'\"?]", true));
+        AddEdge(_start, _character, new(@"[^\n\\\']"));
 
-        AddEdge(CharFsaStates.Start, CharFsaStates.Character, new FsaGraphEdge("[^\n\\\']"));
+        AddEdge(_start, _backslash, new(@"\\"));
+        AddEdge(_backslash, _character, new(@"[abefnrtv\\\'\" + "?]"));
 
-        AddEdge(CharFsaStates.Backslash, CharFsaStates.OneDigitOctal, new FsaGraphEdge("[0-7]", true));
-        AddEdge(CharFsaStates.OneDigitOctal, CharFsaStates.TwoDigitOctal, new FsaGraphEdge("[0-7]", true));
-        AddEdge(CharFsaStates.TwoDigitOctal, CharFsaStates.ThreeDigitOctal, new FsaGraphEdge("[0-7]", true));
+        AddEdge(_backslash, _oneDigitOctal, new("[0-7]"));
+        AddEdge(_oneDigitOctal, _twoDigitOctal, new("[0-7]"));
+        AddEdge(_twoDigitOctal, _threeDigitOctal, new("[0-7]"));
 
-        AddEdge(CharFsaStates.Backslash, CharFsaStates.HexPrefix, new FsaGraphEdge("[xX]"));
-        AddEdge(CharFsaStates.HexPrefix, CharFsaStates.OneDigitHex, new FsaGraphEdge("[a-fA-F0-9]", true));
-        AddEdge(CharFsaStates.OneDigitHex, CharFsaStates.TwoDigitHex, new FsaGraphEdge("[a-fA-F0-9]", true));
+        AddEdge(_backslash, _hexPrefix, new("[xX]"));
+        AddEdge(_hexPrefix, _oneDigitHex, new("[a-fA-F0-9]"));
+        AddEdge(_oneDigitHex, _twoDigitHex, new("[a-fA-F0-9]"));
+
+        CurrentState = new FsaState(_start, string.Empty);
     }
 
-    private FsaState CurrentState { get; set; } = new FsaState(CharFsaStates.Start, null, string.Empty)
-    {
-        CurrentVertex = CharFsaStates.Start
-    };
+    private FsaState CurrentState { get; set; }
 
-    public FsaStatus Status { get; set; } = FsaStatus.Initial;
+    public FsaStatus Status { get; private set; } = FsaStatus.Initial;
 
     public Token GetToken()
     {
-        return new NoneToken()
+        return new CharToken()
         {
-            Content = CurrentState.CharsRead
+            RawContent = CurrentState.CharsRead
         };
     }
 
     public void Read(char @char)
     {
-        Status = FsaStatus.Running;
-
         var currentVertex = GetVertex(CurrentState.CurrentVertex);
         var possibleNextVertices = currentVertex.OutEdges;
 
         bool stateChanged = false;
         foreach (var possibleVertex in possibleNextVertices)
         {
-            var edge = possibleVertex.Weight<FsaGraphEdge>();
-            if (edge.MatchingRegex.IsMatch(@char.ToString()))
+            var matchRegex = possibleVertex.Weight<FsaGraphEdge>().MatchingRegex;
+            if (matchRegex.IsMatch(@char.ToString()))
             {
-                CurrentState = new FsaState(possibleVertex.TargetVertexKey, edge, CurrentState.CharsRead + @char.ToString());
+                CurrentState = new FsaState(possibleVertex.TargetVertexKey, CurrentState.CharsRead + @char.ToString());
                 stateChanged = true;
                 break;
             }
@@ -98,15 +100,28 @@ internal class CharFsa : WeightedDiGraph<string, FsaGraphEdge>, IFsa
 
         if (!stateChanged)
         {
-            if (CurrentState.CanEnd)
-                Status = FsaStatus.Final;
-            else
-                Status = FsaStatus.Error;
+            Status = FsaStatus.Error;
+        }
+        else
+        {
+            Status = CurrentState.IsEnd ? FsaStatus.Final : FsaStatus.Running;
         }
     }
 
     public void Reset()
     {
-        CurrentState = new FsaState(CharFsaStates.Start, null, string.Empty);
+        CurrentState = new FsaState(_start, string.Empty);
+        Status = FsaStatus.Initial;
+    }
+
+    public void ReadEndOfCode()
+    {
+        if (Status == FsaStatus.Running)
+        {
+            if (CurrentState.CanEnd)
+                Status = FsaStatus.Final;
+            else
+                Status = FsaStatus.Error;
+        }
     }
 }

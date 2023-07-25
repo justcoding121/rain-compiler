@@ -4,6 +4,6 @@ namespace Rain.Compiler.Models.Tokenization.Tokens;
 
 public abstract class Token
 {
-    internal string? Content { get; set; }
+    internal string? RawContent { get; set; }
     internal TokenKind Kind { get; set; }
 }
