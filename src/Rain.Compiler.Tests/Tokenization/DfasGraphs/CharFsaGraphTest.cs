@@ -27,7 +27,7 @@ public class CharFsaGraphTest : IDisposable
     [InlineData(@"\78", FsaStatus.Error)]
 
     [InlineData(@"\xF", FsaStatus.Final)]
-    [InlineData(@"\yF", FsaStatus.Error)]
+    [InlineData(@"\y", FsaStatus.Error)]
     [InlineData(@"\xFF", FsaStatus.Final)]
     [InlineData(@"\xG", FsaStatus.Error)]
     [InlineData(@"\xFG", FsaStatus.Error)]

@@ -1,5 +1,5 @@
 ﻿namespace Rain.Compiler.Models.Tokenization;
-internal class FsaGraphNode
+internal struct FsaGraphNode
 {
     internal FsaGraphNode(string name, bool canEnd = false, bool isEnd = false)
     {

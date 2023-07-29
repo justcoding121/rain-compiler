@@ -3,13 +3,16 @@ using Rain.Compiler.Models.Tokenization;
 using Rain.Compiler.Models.Tokenization.Enums;
 using Rain.Compiler.Models.Tokenization.Tokens;
 using Rain.Compiler.Tokenization.DfaGraphs.Interface;
-using System.Text.RegularExpressions;
 
 namespace Rain.Compiler.Tokenization.DFAGraphs;
 
 /// <summary>
-/// This FSA only allows a valid single c character.
-/// A valid c char is exactly 8 bits in length.
+/// This FSA only allows a valid single c character\
+/// // A valid c char is exactly 8 bits in length.
+///
+/// Three types of valid c chars that are 8-bit in length are a regular character, 
+/// an one to three digit octat or an one to two digit hex.
+/// 
 /// References:
 /// https://en.wikipedia.org/wiki/Escape_sequences_in_C
 /// </summary>
@@ -77,12 +80,17 @@ internal class CharFsa : WeightedDiGraph<FsaGraphNode, FsaGraphEdge>, IFsa
     {
         return new CharToken()
         {
-            RawContent = CurrentState.CharsRead
+            Raw = CurrentState.CharsRead
         };
     }
 
     public void Read(char @char)
     {
+        if (Status == FsaStatus.Error || Status == FsaStatus.Final)
+        {
+            throw new InvalidOperationException("Fsa is in invalid state");
+        }
+
         var currentVertex = GetVertex(CurrentState.CurrentVertex);
         var possibleNextVertices = currentVertex.OutEdges;
 
@@ -101,11 +109,11 @@ internal class CharFsa : WeightedDiGraph<FsaGraphNode, FsaGraphEdge>, IFsa
         if (!stateChanged)
         {
             Status = FsaStatus.Error;
+            return;
         }
-        else
-        {
-            Status = CurrentState.IsEnd ? FsaStatus.Final : FsaStatus.Running;
-        }
+
+        Status = CurrentState.IsEnd ? FsaStatus.Final : FsaStatus.Running;
+
     }
 
     public void Reset()
@@ -116,12 +124,11 @@ internal class CharFsa : WeightedDiGraph<FsaGraphNode, FsaGraphEdge>, IFsa
 
     public void ReadEndOfCode()
     {
-        if (Status == FsaStatus.Running)
+        if (Status == FsaStatus.Error || Status == FsaStatus.Final)
         {
-            if (CurrentState.CanEnd)
-                Status = FsaStatus.Final;
-            else
-                Status = FsaStatus.Error;
+            throw new InvalidOperationException("Fsa is in invalid state");
         }
+
+        Status = CurrentState.CanEnd ? FsaStatus.Final : FsaStatus.Error;
     }
 }

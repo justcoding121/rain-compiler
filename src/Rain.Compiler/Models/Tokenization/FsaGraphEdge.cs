@@ -2,7 +2,7 @@
 
 namespace Rain.Compiler.Models.Tokenization;
 
-internal record FsaGraphEdge : IComparable
+internal struct FsaGraphEdge : IComparable
 {
     internal FsaGraphEdge(string matchingRegexPattern)
     {
