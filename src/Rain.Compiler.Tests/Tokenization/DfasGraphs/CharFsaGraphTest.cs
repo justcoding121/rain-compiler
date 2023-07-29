@@ -32,9 +32,8 @@ public class CharFsaGraphTest : IDisposable
     [InlineData(@"\xG", FsaStatus.Error)]
     [InlineData(@"\xFG", FsaStatus.Error)]
     public void Returns_Correct_Status(string inputCode, FsaStatus expecedStatus)
-    {  
+    {
         inputCode.ToList().ForEach(_systemUnderTest.Read);
-        _systemUnderTest.ReadEndOfCode();
 
         _systemUnderTest.Status.Should().Be(expecedStatus); 
     }
