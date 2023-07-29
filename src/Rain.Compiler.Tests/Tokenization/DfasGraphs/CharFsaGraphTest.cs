@@ -15,31 +15,34 @@ public class CharFsaGraphTest : IDisposable
     [InlineData("6", FsaStatus.Final)]
     [InlineData("*", FsaStatus.Final)]
 
-    [InlineData(@"\", FsaStatus.Error)]
+    [InlineData(@"\", FsaStatus.Running)]
     [InlineData(@"\-", FsaStatus.Error)]
-    [InlineData(@"\0", FsaStatus.Final)]
-    [InlineData(@"\7", FsaStatus.Final)]
+    [InlineData(@"\0", FsaStatus.Running)]
+    [InlineData(@"\7", FsaStatus.Running)]
     [InlineData(@"\8", FsaStatus.Error)]
 
 
-    [InlineData(@"\07", FsaStatus.Final)]
+    [InlineData(@"\07", FsaStatus.Running)]
     [InlineData(@"\7-", FsaStatus.Error)]
     [InlineData(@"\78", FsaStatus.Error)]
 
-    [InlineData(@"\xF", FsaStatus.Final)]
+    [InlineData(@"\xF", FsaStatus.Running)]
     [InlineData(@"\y", FsaStatus.Error)]
     [InlineData(@"\xFF", FsaStatus.Final)]
     [InlineData(@"\xG", FsaStatus.Error)]
     [InlineData(@"\xFG", FsaStatus.Error)]
     public void Returns_Correct_Status(string inputCode, FsaStatus expecedStatus)
     {
-        inputCode.ToList().ForEach(_systemUnderTest.Read);
+        for (int i = 0; i < inputCode.Length; i++)
+        {
+            _systemUnderTest.Read(i, inputCode[i]);
+        }
 
-        _systemUnderTest.Status.Should().Be(expecedStatus); 
+        _systemUnderTest.Status.Should().Be(expecedStatus);
     }
 
     public void Dispose()
     {
-       _systemUnderTest.Reset();
+        _systemUnderTest.Reset();
     }
 }

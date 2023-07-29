@@ -1,5 +1,7 @@
 ﻿using Advanced.Algorithms.DataStructures.Graph.AdjacencyList;
 using Rain.Compiler.Models.Tokenization;
+using Rain.Compiler.Models.Tokenization.Constants;
+using Rain.Compiler.Models.Tokenization.Constants.Fsa;
 using Rain.Compiler.Models.Tokenization.Enums;
 using Rain.Compiler.Models.Tokenization.Tokens;
 using Rain.Compiler.Tokenization.DfaGraphs.Interface;
@@ -7,11 +9,11 @@ using Rain.Compiler.Tokenization.DfaGraphs.Interface;
 namespace Rain.Compiler.Tokenization.DFAGraphs;
 
 /// <summary>
-/// This FSA only allows a valid single c character\
-/// // A valid c char is exactly 8 bits in length.
+/// This FSA only allows a valid single c character.
+/// A valid c char is exactly 8 bits in length (2^8 = 255 possible values).
 ///
-/// Three types of valid c chars that are 8-bit in length are a regular character, 
-/// an one to three digit octat or an one to two digit hex.
+/// Three types of valid c chars are a regular character, 
+/// an octat (1-3 digits) or a hex (1-2 digits).
 /// 
 /// References:
 /// https://en.wikipedia.org/wiki/Escape_sequences_in_C
@@ -33,18 +35,18 @@ internal class CharFsa : WeightedDiGraph<FsaGraphNode, FsaGraphEdge>, IFsa
 
     internal CharFsa()
     {
-        _start = new FsaGraphNode("Start");
+        _start = new FsaGraphNode(CharFsaStateNames.Start);
 
-        _backslash = new FsaGraphNode("Backslash");
-        _character = new FsaGraphNode("Character", true, true);
+        _backslash = new FsaGraphNode(CharFsaStateNames.Backslash);
+        _character = new FsaGraphNode(CharFsaStateNames.Character, true, true);
 
-        _oneDigitOctal = new FsaGraphNode("OneDigitOctal", true);
-        _twoDigitOctal = new FsaGraphNode("TwoDigitOctal", true);
-        _threeDigitOctal = new FsaGraphNode("ThreeDigitOctal", true, true);
+        _oneDigitOctal = new FsaGraphNode(CharFsaStateNames.OneDigitOctal, true);
+        _twoDigitOctal = new FsaGraphNode(CharFsaStateNames.TwoDigitOctal, true);
+        _threeDigitOctal = new FsaGraphNode(CharFsaStateNames.ThreeDigitOctal, true, true);
 
-        _hexPrefix = new FsaGraphNode("HexPrefix");
-        _oneDigitHex = new FsaGraphNode("OneDigitHex", true);
-        _twoDigitHex = new FsaGraphNode("TwoDigitHex", true, true);
+        _hexPrefix = new FsaGraphNode(CharFsaStateNames.HexPrefix);
+        _oneDigitHex = new FsaGraphNode(CharFsaStateNames.OneDigitHex, true);
+        _twoDigitHex = new FsaGraphNode(CharFsaStateNames.TwoDigitHex, true, true);
 
         AddVertex(_start);
         AddVertex(_backslash);
@@ -76,6 +78,8 @@ internal class CharFsa : WeightedDiGraph<FsaGraphNode, FsaGraphEdge>, IFsa
 
     public FsaStatus Status { get; private set; } = FsaStatus.Initial;
 
+    public FsaErrorDetails? FsaErrorDetails { get; private set; }
+
     public Token GetToken()
     {
         return new CharToken()
@@ -84,11 +88,11 @@ internal class CharFsa : WeightedDiGraph<FsaGraphNode, FsaGraphEdge>, IFsa
         };
     }
 
-    public void Read(char @char)
+    public void Read(int position, char @char)
     {
         if (Status == FsaStatus.Error || Status == FsaStatus.Final)
         {
-            throw new InvalidOperationException("Fsa is in invalid state");
+            throw new InvalidOperationException(ExceptionMessages.InvalidState);
         }
 
         var currentVertex = GetVertex(CurrentState.CurrentVertex);
@@ -124,9 +128,9 @@ internal class CharFsa : WeightedDiGraph<FsaGraphNode, FsaGraphEdge>, IFsa
 
     public void ReadEndOfCode()
     {
-        if (Status == FsaStatus.Error || Status == FsaStatus.Final)
+        if (Status == FsaStatus.Error)
         {
-            throw new InvalidOperationException("Fsa is in invalid state");
+            throw new InvalidOperationException(ExceptionMessages.InvalidState);
         }
 
         Status = CurrentState.CanEnd ? FsaStatus.Final : FsaStatus.Error;
