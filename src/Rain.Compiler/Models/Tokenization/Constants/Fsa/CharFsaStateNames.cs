@@ -3,7 +3,6 @@
 
 internal class CharFsaStateNames
 {
-    internal const string Start = nameof(Start);
     internal const string Backslash = nameof(Backslash);
     internal const string Character = nameof(Character);
     internal const string OneDigitOctal = nameof(OneDigitOctal);

@@ -4,6 +4,7 @@ using Rain.Compiler.Models.Tokenization.Constants;
 using Rain.Compiler.Models.Tokenization.Constants.Fsa;
 using Rain.Compiler.Models.Tokenization.Enums;
 using Rain.Compiler.Models.Tokenization.Tokens;
+using Rain.Compiler.Tokenization.DfaGraphs;
 using Rain.Compiler.Tokenization.DfaGraphs.Interface;
 
 namespace Rain.Compiler.Tokenization.DFAGraphs;
@@ -18,10 +19,8 @@ namespace Rain.Compiler.Tokenization.DFAGraphs;
 /// References:
 /// https://en.wikipedia.org/wiki/Escape_sequences_in_C
 /// </summary>
-internal class CharFsa : WeightedDiGraph<FsaGraphNode, FsaGraphEdge>, IFsa
+internal class CharFsa : Fsa, IFsa
 {
-    private readonly FsaGraphNode _start;
-
     private readonly FsaGraphNode _backslash;
     private readonly FsaGraphNode _character;
 
@@ -33,10 +32,8 @@ internal class CharFsa : WeightedDiGraph<FsaGraphNode, FsaGraphEdge>, IFsa
     private readonly FsaGraphNode _oneDigitHex;
     private readonly FsaGraphNode _twoDigitHex;
 
-    internal CharFsa()
-    {
-        _start = new FsaGraphNode(CharFsaStateNames.Start);
-
+    internal CharFsa() : base()
+    {    
         _backslash = new FsaGraphNode(CharFsaStateNames.Backslash);
         _character = new FsaGraphNode(CharFsaStateNames.Character, true, true);
 
@@ -70,69 +67,5 @@ internal class CharFsa : WeightedDiGraph<FsaGraphNode, FsaGraphEdge>, IFsa
         AddEdge(_backslash, _hexPrefix, new("[xX]"));
         AddEdge(_hexPrefix, _oneDigitHex, new("[a-fA-F0-9]"));
         AddEdge(_oneDigitHex, _twoDigitHex, new("[a-fA-F0-9]"));
-
-        CurrentState = new FsaState(_start, string.Empty);
-    }
-
-    private FsaState CurrentState { get; set; }
-
-    public FsaStatus Status { get; private set; } = FsaStatus.Initial;
-
-    public FsaErrorDetails? FsaErrorDetails { get; private set; }
-
-    public Token GetToken()
-    {
-        return new CharToken()
-        {
-            Raw = CurrentState.CharsRead
-        };
-    }
-
-    public void Read(int position, char @char)
-    {
-        if (Status == FsaStatus.Error || Status == FsaStatus.Final)
-        {
-            throw new InvalidOperationException(ExceptionMessages.InvalidState);
-        }
-
-        var currentVertex = GetVertex(CurrentState.CurrentVertex);
-        var possibleNextVertices = currentVertex.OutEdges;
-
-        bool stateChanged = false;
-        foreach (var possibleVertex in possibleNextVertices)
-        {
-            var matchRegex = possibleVertex.Weight<FsaGraphEdge>().MatchingRegex;
-            if (matchRegex.IsMatch(@char.ToString()))
-            {
-                CurrentState = new FsaState(possibleVertex.TargetVertexKey, CurrentState.CharsRead + @char.ToString());
-                stateChanged = true;
-                break;
-            }
-        }
-
-        if (!stateChanged)
-        {
-            Status = FsaStatus.Error;
-            return;
-        }
-
-        Status = CurrentState.IsEnd ? FsaStatus.Final : FsaStatus.Running;
-
-    }
-
-    public void Reset()
-    {
-        CurrentState = new FsaState(_start, string.Empty);
-        Status = FsaStatus.Initial;
-    }
-
-    public void ReadEndOfCode()
-    {
-        if (Status == FsaStatus.Error)
-        {
-            throw new InvalidOperationException(ExceptionMessages.InvalidState);
-        }
-
-        Status = CurrentState.CanEnd ? FsaStatus.Final : FsaStatus.Error;
     }
 }
